@@ -1,12 +1,21 @@
 defmodule ExDoc.Highlighter do
-  @moduledoc false
-  alias ExDoc.Highlighter.HtmlDecoder
+  @moduledoc """
+  Performs code highlighting.
+  """
 
-  # Assets are included in the bundles and don't need to be declared here.
+  @doc """
+  Highlighter specific assets.
+  """
   def assets(_), do: []
 
+  @doc """
+  Highlighter specific annotations.
+  """
   def before_closing_head_tag(_), do: ""
 
+  @doc """
+  Highlighter specific annotations.
+  """
   def before_closing_body_tag(_), do: ""
 
   # If new lexers are available, add them here:
@@ -14,10 +23,15 @@ defmodule ExDoc.Highlighter do
   defp pick_language_and_lexer("elixir"), do: {"elixir", Makeup.Lexers.ElixirLexer}
   defp pick_language_and_lexer(other), do: {other, nil}
 
-  # Public API for the module.
-  # Highlights all code block in an already generated HTML document.
+  @doc """
+  Highlights all code block in an already generated HTML document.
+  """
   def highlight_code_blocks(html) do
-    Regex.replace(~r/<pre><code(?:\s+class="(\w*)")?>([^<]*)<\/code><\/pre>/, html, &highlight_code_block/3)
+    Regex.replace(
+      ~r/<pre><code(?:\s+class="(\w*)")?>([^<]*)<\/code><\/pre>/,
+      html,
+      &highlight_code_block/3
+    )
   end
 
   defp highlight_code_block(full_block, lang, code) do
@@ -30,8 +44,26 @@ defmodule ExDoc.Highlighter do
   defp render_code(lang, lexer, code) do
     highlighted =
       code
-      |> HtmlDecoder.unescape_html_entities()
+      |> unescape_html()
+      |> IO.iodata_to_binary()
       |> Makeup.highlight_inner_html(lexer: lexer)
+
     ~s(<pre><code class="nohighlight makeup #{lang}">#{highlighted}</code></pre>)
+  end
+
+  entities = [{"&amp;", ?&}, {"&lt;", ?<}, {"&gt;", ?>}, {"&quot;", ?"}, {"&#39;", ?'}]
+
+  for {encoded, decoded} <- entities do
+    defp unescape_html(unquote(encoded) <> rest) do
+      [unquote(decoded) | unescape_html(rest)]
+    end
+  end
+
+  defp unescape_html(<<c, rest::binary>>) do
+    [c | unescape_html(rest)]
+  end
+
+  defp unescape_html(<<>>) do
+    []
   end
 end
